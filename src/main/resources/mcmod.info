@@ -1,0 +1,10 @@
+[{
+  "modid": "elizonperms",
+  "name": "ELIZONPerms",
+  "description": "Permissions System",
+  "version": "v0.1-alpha",
+  "mcversion": "1.16.5",
+  "logoFile": "assets/elizonperms/textures/logo.png",
+  "url": "https://elizon.app",
+  "authorList": ["ELIZONMedia"]
+}]

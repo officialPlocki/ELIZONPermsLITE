@@ -1,0 +1,4 @@
+name: ELIZONPerms
+main: app.elizon.perms.bungeecord.BungeeLoader
+version: v0.1-alpha
+author: ELIZONMedia

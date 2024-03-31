@@ -1,0 +1,19 @@
+{
+  "id": "elizonperms",
+  "name": "ELIZONPerms",
+  "version": "v0.1-alpha",
+  "authors": [
+    "ELIZONMedia"
+  ],
+  "dependencies": [
+    {
+      "id": "viaversion",
+      "optional": true
+    },
+    {
+      "id": "redisbungee",
+      "optional": true
+    }
+  ],
+  "main": "app.elizon.perms.velocity.VelocityLoader"
+}

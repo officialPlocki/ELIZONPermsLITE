@@ -1,0 +1,15 @@
+name: ELIZONPerms
+api-version: 1.16
+author: ELIZONMedia
+database: true
+load: STARTUP
+website: https://elizon.app
+main: app.elizon.perms.spigot.SpigotLoader
+version: v0.1-alpha
+commands:
+  elizonperms:
+    aliases:
+      - ep
+      - perms
+      - elizonp
+    permission: elizonperms.command.execute
