@@ -5,8 +5,8 @@ import app.elizon.perms.pkg.player.PermPlayer;
 import app.elizon.perms.pkg.util.MultiState;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.ProxyServer;
-import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
+import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.plugin.TabExecutor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -25,10 +25,8 @@ public class ElizonPermsBungeeCommand extends Command implements TabExecutor {
 
     @Override
     public void execute(@NotNull CommandSender sender, @NotNull String[] args) {
-        if (!(sender instanceof ProxiedPlayer player)) {
-            sender.sendMessage("Only players can use this command.");
-            return;
-        }
+
+        CommandSender player = sender;
 
         if(!sender.hasPermission("elizonperms.command.execute")) {
             sender.sendMessage("§f[§9EP§f] §aThis server is using the free ElizonPerms Lite permissions system by ELIZONMedia. Thanks for using!");
@@ -55,7 +53,7 @@ public class ElizonPermsBungeeCommand extends Command implements TabExecutor {
         }
     }
 
-    private void handleGroupAction(ProxiedPlayer player, String targetName, String actionType, String[] args) {
+    private void handleGroupAction(CommandSender player, String targetName, String actionType, String[] args) {
         PermGroup group = new PermGroup(targetName);
 
         if (!player.hasPermission("elizonperms.group." + actionType.toLowerCase())) {
@@ -201,7 +199,7 @@ public class ElizonPermsBungeeCommand extends Command implements TabExecutor {
     }
 
 
-    private void handleUserAction(ProxiedPlayer player, String targetName, String actionType, String[] args) {
+    private void handleUserAction(CommandSender player, String targetName, String actionType, String[] args) {
         PermPlayer permPlayer = new PermPlayer(ProxyServer.getInstance().getPlayer(targetName).getUniqueId().toString());
 
         if (!player.hasPermission("elizonperms.user." + actionType.toLowerCase())) {
@@ -380,6 +378,7 @@ public class ElizonPermsBungeeCommand extends Command implements TabExecutor {
     @Nullable
     @Override
     public Iterable<String> onTabComplete(CommandSender sender, String[] args) {
+
         if (!sender.hasPermission("elizonperms.autocomplete")) {
             return Collections.emptyList();
         }
@@ -393,55 +392,104 @@ public class ElizonPermsBungeeCommand extends Command implements TabExecutor {
         } else if (args.length == 2) {
             // Complete target name (players/groups)
             if ("group".equalsIgnoreCase(args[0])) {
-                // Complete group names
-                // You can fetch group names from your data source
-                PermGroup group = new PermGroup(null);
-                completions.addAll(group.getAllGroups());
+                // Provide list of group names
+                completions.addAll(getGroupNames());
             } else if ("user".equalsIgnoreCase(args[0])) {
-                // Complete online player names
-                for (ProxiedPlayer player : ProxyServer.getInstance().getPlayers()) {
-                    completions.add(player.getName());
-                }
+                // Provide list of online player names
+                completions.addAll(getOnlinePlayerNames());
                 completions.add("uuid:");
             }
         } else if (args.length == 3) {
             // Complete action type (permission/info/create/delete/rename/clone)
-            completions.add("permission");
-            completions.add("info");
-            completions.add("create");
-            completions.add("delete");
-            completions.add("rename");
-            completions.add("clone");
-        } else if (args.length == 4) {
-            // Complete action (add/remove/set/info)
-            completions.add("add");
-            completions.add("remove");
-            completions.add("set");
-            completions.add("info");
-        } else if (args.length == 5) {
-            // Complete permission/group name for actions that require it
-            if ("permission".equalsIgnoreCase(args[2])) {
-                return Collections.emptyList();
-            } else if ("group".equalsIgnoreCase(args[2])) {
-                // Provide your list of permissions/groups here
-                PermGroup group = new PermGroup(null);
-                completions.addAll(group.getAllGroups());
-                // Add more permissions/groups as needed
-            } else if ("rename".equalsIgnoreCase(args[2]) || "clone".equalsIgnoreCase(args[2])) {
-                return Collections.emptyList();
-            } else if ("delete".equalsIgnoreCase(args[2]) || "create".equalsIgnoreCase(args[2])) {
-                // Command ends after this point, no further completions needed
-                return Collections.emptyList();
+            if ("group".equalsIgnoreCase(args[0])) {
+                completions.add("permission");
+                completions.add("info");
+                completions.add("create");
+                completions.add("delete");
+                completions.add("rename");
+                completions.add("clone");
+            } else if ("user".equalsIgnoreCase(args[0])) {
+                completions.add("group");
+                completions.add("permission");
+                completions.add("info");
             }
-        } else if (args.length == 6) {
-            // Complete true/false for the 6th argument
-            completions.add("true");
-            completions.add("false");
-            if ("permission".equalsIgnoreCase(args[2])) {
-                completions.add("data");
+        } else if (args.length >= 4) {
+            // Complete subcommands based on previous arguments
+            if ("group".equalsIgnoreCase(args[0])) {
+                completions.addAll(getGroupSubcommands(args));
+            } else if ("user".equalsIgnoreCase(args[0])) {
+                completions.addAll(getUserSubcommands(args));
             }
         }
 
+        return completions;
+    }
+
+    private List<String> getGroupNames() {
+        // Provide your list of group names here
+        return new PermGroup(null).getAllGroups();
+    }
+
+    private List<String> getOnlinePlayerNames() {
+        // Provide your list of online player names here
+
+        List<String> names = new ArrayList<>();
+
+        for (ProxiedPlayer player : ProxyServer.getInstance().getPlayers()) {
+            names.add(player.getName());
+        }
+
+        return names;
+    }
+
+    private List<String> getGroupSubcommands(String[] args) {
+        List<String> completions = new ArrayList<>();
+        String actionType = args[2];
+        switch (actionType.toLowerCase()) {
+            case "permission":
+                completions.add("add");
+                completions.add("remove");
+                completions.add("info");
+                completions.add("set");
+                break;
+            case "info":
+                completions.add("permission");
+                completions.add("create");
+                completions.add("delete");
+                completions.add("rename");
+                completions.add("clone");
+                break;
+            case "create":
+            case "delete":
+                break; // Command ends, no further completions needed
+            case "rename":
+            case "clone":
+                // No completions for the new group name
+                break;
+        }
+        return completions;
+    }
+
+    private List<String> getUserSubcommands(String[] args) {
+        List<String> completions = new ArrayList<>();
+        String actionType = args[2];
+        switch (actionType.toLowerCase()) {
+            case "group":
+                completions.add("add");
+                completions.add("set");
+                completions.add("remove");
+                break;
+            case "permission":
+                completions.add("add");
+                completions.add("remove");
+                completions.add("set");
+                completions.add("info");
+                break;
+            case "info":
+                completions.add("permission");
+                completions.add("info");
+                break;
+        }
         return completions;
     }
 }

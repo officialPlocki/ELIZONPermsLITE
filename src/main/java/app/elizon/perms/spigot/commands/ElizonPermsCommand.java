@@ -9,7 +9,6 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
-import org.bukkit.permissions.Permission;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.json.JSONObject;
@@ -23,10 +22,7 @@ public class ElizonPermsCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage("Only players can use this command.");
-            return true;
-        }
+        CommandSender player = sender;
 
         if (!sender.hasPermission("elizonperms.command.execute")) {
             sender.sendMessage("§f[§9EP§f] §aThis server is using the free ElizonPerms Lite permissions system by ELIZONMedia. Thanks for using!");
@@ -55,7 +51,7 @@ public class ElizonPermsCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private void handleGroupAction(Player player, String targetName, String actionType, String[] args) {
+    private void handleGroupAction(CommandSender player, String targetName, String actionType, String[] args) {
         PermGroup group = new PermGroup(targetName);
 
         if (!player.hasPermission("elizonperms.group." + actionType.toLowerCase())) {
@@ -202,7 +198,7 @@ public class ElizonPermsCommand implements CommandExecutor, TabCompleter {
     }
 
 
-    private void handleUserAction(Player player, String targetName, String actionType, String[] args) {
+    private void handleUserAction(CommandSender player, String targetName, String actionType, String[] args) {
         PermPlayer permPlayer = new PermPlayer(Bukkit.getOfflinePlayer(targetName).getUniqueId().toString());
 
         if (!player.hasPermission("elizonperms.user." + actionType.toLowerCase())) {
@@ -382,61 +378,121 @@ public class ElizonPermsCommand implements CommandExecutor, TabCompleter {
 
     @Nullable
     @Override
-    public List<String> onTabComplete(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String s, @NotNull String[] args) {
-        if (!commandSender.hasPermission("elizonperms.autocomplete")) {
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String s, @NotNull String[] args) {
+
+        if (!sender.hasPermission("elizonperms.autocomplete")) {
             return Collections.emptyList();
         }
 
+        List<String> completions = new ArrayList<>();
+
         if (args.length == 1) {
             // Complete target type (group/user)
-            return List.of("group", "user");
+            completions.add("group");
+            completions.add("user");
         } else if (args.length == 2) {
             // Complete target name (players/groups)
-            if (args[0].equalsIgnoreCase("group")) {
-                // Complete group names
-                // You can fetch group names from your data source
-                PermGroup group = new PermGroup(null);
-                return group.getAllGroups();
-            } else if (args[0].equalsIgnoreCase("user")) {
-                // Complete online player names
-                List<String> names = new ArrayList<>(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList());
-                names.addFirst("uuid:");
-                return names;
+            if ("group".equalsIgnoreCase(args[0])) {
+                // Provide list of group names
+                completions.addAll(getGroupNames());
+            } else if ("user".equalsIgnoreCase(args[0])) {
+                // Provide list of online player names
+                completions.addAll(getOnlinePlayerNames());
+                completions.add("uuid:");
             }
         } else if (args.length == 3) {
             // Complete action type (permission/info/create/delete/rename/clone)
-            return List.of("permission", "info", "create", "delete", "rename", "clone");
-        } else if (args.length == 4) {
-            // Complete action (add/remove/set/info)
-            if (args[0].equalsIgnoreCase("group")) {
-                return List.of("add", "remove", "set", "info");
+            if ("group".equalsIgnoreCase(args[0])) {
+                completions.add("permission");
+                completions.add("info");
+                completions.add("create");
+                completions.add("delete");
+                completions.add("rename");
+                completions.add("clone");
+            } else if ("user".equalsIgnoreCase(args[0])) {
+                completions.add("group");
+                completions.add("permission");
+                completions.add("info");
             }
-            return List.of("add", "remove", "set", "info");
-        } else if (args.length == 5) {
-            // Complete permission/group name for actions that require it
-            if (args[2].equalsIgnoreCase("permission") || args[2].equalsIgnoreCase("group")) {
-                // Provide your list of permissions/groups here
-                List<String> perms = new ArrayList<>();
-                for (Permission permission : Bukkit.getPluginManager().getPermissions().stream().toList()) {
-                    perms.add(permission.getName());
-                }
-                return perms;
-            } else if (args[2].equalsIgnoreCase("rename") || args[2].equalsIgnoreCase("clone")) {
-                PermGroup group = new PermGroup(null);
-                return group.getAllGroups();
-            } else if (args[2].equalsIgnoreCase("delete") || args[2].equalsIgnoreCase("create")) {
-                // Command ends after this point, no further completions needed
-                return List.of();
+        } else if (args.length >= 4) {
+            // Complete subcommands based on previous arguments
+            if ("group".equalsIgnoreCase(args[0])) {
+                completions.addAll(getGroupSubcommands(args));
+            } else if ("user".equalsIgnoreCase(args[0])) {
+                completions.addAll(getUserSubcommands(args));
             }
-        } else if (args.length == 6) {
-            // Complete true/false for the 6th argument
-            return List.of("true", "false");
-        } else if (args.length == 7 && args[4].equalsIgnoreCase("clone")) {
-            // Complete group name for clone action
-            // You can fetch group names from your data source
-            PermGroup group = new PermGroup(null);
-            return group.getAllGroups();
         }
-        return List.of();
+
+        return completions;
     }
+
+    private List<String> getGroupNames() {
+        // Provide your list of group names here
+        return new PermGroup(null).getAllGroups();
+    }
+
+    private List<String> getOnlinePlayerNames() {
+        // Provide your list of online player names here
+
+        List<String> names = new ArrayList<>();
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            names.add(player.getName());
+        }
+
+        return names;
+    }
+
+
+    private List<String> getGroupSubcommands(String[] args) {
+        List<String> completions = new ArrayList<>();
+        String actionType = args[2];
+        switch (actionType.toLowerCase()) {
+            case "permission":
+                completions.add("add");
+                completions.add("remove");
+                completions.add("info");
+                completions.add("set");
+                break;
+            case "info":
+                completions.add("permission");
+                completions.add("create");
+                completions.add("delete");
+                completions.add("rename");
+                completions.add("clone");
+                break;
+            case "create":
+            case "delete":
+                break; // Command ends, no further completions needed
+            case "rename":
+            case "clone":
+                // No completions for the new group name
+                break;
+        }
+        return completions;
+    }
+
+    private List<String> getUserSubcommands(String[] args) {
+        List<String> completions = new ArrayList<>();
+        String actionType = args[2];
+        switch (actionType.toLowerCase()) {
+            case "group":
+                completions.add("add");
+                completions.add("set");
+                completions.add("remove");
+                break;
+            case "permission":
+                completions.add("add");
+                completions.add("remove");
+                completions.add("set");
+                completions.add("info");
+                break;
+            case "info":
+                completions.add("permission");
+                completions.add("info");
+                break;
+        }
+        return completions;
+    }
+
 }
